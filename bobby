@@ -1,0 +1,791 @@
+import tkinter as tk  # 使用Tkinter前需要先导入
+import sqlite3
+import tensorflow as tf
+import string
+import pandas as pd
+import numpy as np
+import os,sys
+from tkinter import *
+from tkinter import filedialog
+from tkinter import messagebox as msgbox
+import tkinter.messagebox
+import pickle
+import pandas as pd
+from tkinter.ttk import Treeview,Scrollbar
+
+#---------------------------------------------------------------------数据库模块------------------------------------------------------------------
+
+#----------------------------------学生作业数据库------------------------------------
+def open_schoolwork_db():
+    conn = sqlite3.connect("D:/tensorflowdate/movies/schoolwork_db.db")
+    cur = conn.execute("create table if not exists schoolwork_db(sw_id integer primary key,user_num integer,sw_title text,sw_condition integer,sw_points integer)")
+    res=cur.execute("select * from schoolwork_db")
+    r=res.fetchall()
+    #数据库为空集，则添加一条样本信息进入数据库
+    if len(r) == 0:
+        cur.execute("insert into schoolwork_db values('0','150004','第一章作业','1','95')")
+    return cur,conn
+
+def insert_schoolwork_db():
+    hel=open_user_info_db()
+    cur=hel[1].cursor()
+    result=cur.execute("select * from schoolwork_db")
+    res=result.fetchall()#查询所有结果集，len（res）为结果集的总记录数
+    sql_insert='''insert into schoolwork_db(sw_id,user_num,sw_title,sw_condition,sw_points) values (:swid,:unum,:swt,:swcon,:swp)'''
+    #添加学生信息
+    cur.execute(sql_insert,{'uid':len(res),'unum':len(res)+150000,'swt':'第二章作业','swcon':'0','swp':0})
+    hel[1].commit()
+    cur.close()
+#----------------------------------学生作业数据库------------------------------------
+
+
+
+#-----------------------------------在线答疑数据库-----------------------------------
+def open_qa_db():
+    conn=sqlite3.connect("D:/tensorflowdate/movies/questions2.db")
+    cur=conn.execute("create table if not exists questions_db(ques_id integer primary key,user_num integer,ques_condition varchar(4),ques_title stringvar,question varchar(128),ques_answer varchar(128),ques_time integer)")
+    res=cur.execute("select * from questions_db")
+    r=res.fetchall()
+    #数据库为空集，则添加一条样本信息进入数据库
+    if len(r) == 0:
+        cur.execute("insert into questions_db values('0','0','已回答','答疑示例样本问题','提出一个问题的内容','回答该问题，这里是问题的答案','2019')")
+    conn.commit()
+    return cur,conn
+
+#插入一条答疑信息
+def insert_info_qa(q_title,ques,q_ans):
+    hel = open_qa_db()
+    cur=hel[1].cursor()
+    result=cur.execute("select * from questions_db")
+    res=result.fetchall()
+    sql_insert='''insert into questions_db(ques_id,user_num,ques_condition,ques_title,question,ques_answer,ques_time) values (:qid,:unum,:qcon,:qtit,:question,:qans,:qtime)'''
+    #添加学生信息
+    cur.execute(sql_insert,{'qid':len(res),'unum':len(res)+150000,'qcon':'未回答','qtit':q_title,'question':ques,'qans':q_ans,'qtime':2019})
+    #cur.execute("insert into questions_db values('5','1','这是一个没有回答的问题','这是问题的内容，并且还没有回答','这是问题的答案')")
+    hel[1].commit()
+    cur.close()
+#-----------------------------------在线答疑数据库-----------------------------------
+
+
+
+#-------------------------------用户信息数据库-----------------------------
+#打开用户信息数据库，用户信息数据库用于存储用户的身份id，学号，姓名，登录账号密码，学生等级等信息。
+#若为找到该数据库则重新建一个数据库来执行上述操作
+#如果数据库中没有数据存在，即数据库为空，则向数据库中添加一条数据信息作为示例样本。
+def open_user_info_db():
+    conn = sqlite3.connect("D:/tensorflowdate/movies/users_info_db.db")
+    cur = conn.execute("create table if not exists user_info_db(user_id integer primary key,user_num integer,user_name text,user_password text,user_rating integer)")
+    res=cur.execute("select user_id from user_info_db")
+    r=res.fetchall()
+    #数据库为空集，则添加一条样本信息进入数据库
+    if len(r) == 0:
+        cur.execute("insert into user_info_db values('0','150000','托尼','123456','0')")
+#返回cur和conn以便于在调用该函数之后可以直接对数据库进行相关操作。
+    return cur,conn
+#输入信息
+#def into():
+ #   usernum = input("请输入学号")
+  #  username1 = input("请输入姓名")
+   # password1 = input("请输入密码")
+    #userrating1 = input("请输入用户等级")
+     #return usernum,username1,password1,userrating1
+
+#添加数据
+def insert_user_db():
+    hel=open_user_info_db()
+    cur=hel[1].cursor()
+    result=cur.execute("select * from user_info_db")
+    res=result.fetchall()#查询所有结果集，len（res）为结果集的总记录数
+    sql_insert='''insert into user_info_db(user_id,user_num,user_name,user_password,user_rating) values (:uid,:unum,:una,:upwd,:ura)'''
+   
+    
+    #添加学生信息
+    cur.execute(sql_insert,{'uid':len(res),'unum':len(res)+150000,'una':'小红','upwd':'123456','ura':1})
+    hel[1].commit()
+    cur.close()
+#-------------------------------用户信息数据库-----------------------------
+#------------------------------------------------------------------------------------数据库模块------------------------------------------------------
+
+
+#----------------------框架清屏函数--------------------------
+def f_right_clean(frame):
+    for widget in frame.winfo_children():
+        widget.destroy()
+#----------------------框架清屏函数--------------------------
+
+
+
+#---------------------课程学习模块----------------------------
+def class_learn():
+    def study_content(event):
+        #f_right_clean(f_right)函数对f_right框架进行清屏
+        f_right_clean(f_right)
+        content1='''
+        第一章  电影电视发展 *3课时*
+        教学内容：
+        世界和我国的电影发展史 # 早期电影的特征、主要代表
+        人物和其代表作品、艺术主张 # 早期电影和当代电影在艺术上的异同。
+        本章重点：世界和我国的电影发展史
+        本章难点：早期电影的特征、主要代表人物及其代表作品、艺术主张
+        # 早期电影和当代电影在艺术上的异同。
+        '''
+        content2='''
+        第二章   景别和镜头 #3课时#
+        教学内容：
+        1. 景和镜头的基本含义
+        2. 各种景别的造型功能
+        2. 各种景别的造型功能
+        本章重点：#景和镜头的基本含义#镜头的艺术功效 
+        本章难点：#镜头的艺术功效
+        '''
+        for i in listb1.curselection():
+            if listb1.get(i)=='第一章  电影电视发展史':
+                lab_n1=Label(f_right,text=content1,font=("楷体",15),justify="left",bg="white")
+                lab_n2=Label(f_right,text='教学视频',bg='white')
+                lab_n1.pack(fill=Y)
+                lab_n2.bind('<Double-Button-1>',study_videos)
+                lab_n2.pack(fill=Y)
+            elif listb1.get(i)=='第二章  景别和镜头':
+                lab_21=Label(f_right,text=content2,font=("楷体",15),justify="left",bg="white")
+                lab_22=Label(f_right,text='教学视频',bg='white')
+                lab_21.pack(fill=Y)
+                lab_22.bind('<Double-Button-1>',study_videos)
+                lab_22.pack(fill=Y)
+    
+    #再次通过鼠标点击事件调用函数，打开教学视频
+    def study_videos(event):
+        for i in listb1.curselection():
+            if listb1.get(i)=='第一章  电影电视发展史':
+                #fileName =filedialog.askopenfilename()
+                #fname =open(fileName)
+                #fileName =filedialog.askopenfilename(initialdir='D:/tensorflowdate/movies/study_movies/video_1.mp4',filetypes=[("mp4",".mp4")])
+                #fileName1字符变量保存需要打开的视频文件路径
+                fileName1=('D:/tensorflowdate/movies/study_movies/video_1.mp4')
+                #用格式工厂的视频播放软件打开fileName1文件路径的视频文件，需要在电脑中装入格式工厂软件。
+                path,fn = os.path.split(fileName1)
+                os.system(r"D:\格式工厂\FormatFactory\FFModules\Encoder\mplayer.exe -title %s -aspect 16:9 %s" % (fn,fileName1))
+                print(fileName1)
+            elif listb1.get(i)=='第二章  景别和镜头':
+                fileName2=('D:/tensorflowdate/movies/study_movies/video_2.mp4')
+                path,fn = os.path.split(fileName2)
+                os.system(r"D:\格式工厂\FormatFactory\FFModules\Encoder\mplayer.exe -title %s -aspect 16:9 %s" % (fn,fileName2))
+            
+
+    #打开新窗口进入课程学习界面，设置窗口大小并设置为不可更改
+    top=tk.Tk()
+    top.geometry("1024x800")
+    top.title('课程学习')
+    top.resizable(False, False)
+    
+    #创建左右两个框架，左边框架显示各章节标题，右边框架显示教学任务或教学内容
+    f_left=Frame(top)
+    f_left.place(x=1,y=40,width=200)
+    f_right=Frame(top)
+    f_right.place(x=250,y=40)
+    #f1=LabelFrame(f_left,text='课程学习区')
+    
+    #f2=LabelFrame(f_left,text='教师工作区')#未显示出来
+    
+    
+    #初始界面教学区域内容为“《电影赏析》课程教学目的”
+    annotitle=Label(top,text='————教学区域————',font=20)
+    annotitle.place(x=480,y=1)
+    announ='''
+                              《电影赏析》课程教学目的
+        面向全体学生进行电影欣赏普及教育。通过赏析电影作品，开阔学生的艺术视野，增
+    强学生对电影的兴趣与爱好；了解中外经典电影及有关基本知识；提高感受、理解鉴赏电
+    影的能力，养成欣赏电影的文明习惯；培养学生具有高雅的审美情趣，以达到促进学生身
+    心和谐发展、提高素质的目的。
+    '''
+    announcement=Label(f_right,text=announ,font=15,anchor=N,justify='left',height=22,width=90,bg='white')
+    announcement.pack(fill=Y)
+    #announcement=Text(f_right,width=90,height=40)
+    #announcement.insert(INSERT,'这里还是教学公告内容')
+    #announcement.pack(fill=Y)
+    
+    
+    li1 = ['第十章  总结考查','第九章  动作片','第八章  生活、传记片','第七章  影视艺术的鉴赏方法','第六章  惊恐、科幻片','第五章  战争片','第四章  蒙太奇','第三章  爱情片欣赏','第二章  景别和镜头','第一章  电影电视发展史']
+    li2 =['布置作业','上传课件','查看学生信息']
+    lab1 = Label(top,text = '学生课程学习',font=12)
+    lab1.place(x=50,y=20)
+    listb1=Listbox(f_left,font=15,width=30,height=20)
+    #《电影赏析》课程章节目录
+    for item in li1:
+        listb1.insert(0,item)
+    #双击章节目录名称调用教学内容函数，显示对应章节教学内容。
+    listb1.bind('<Double-Button-1>',study_content)
+    listb1.pack(fill=Y)
+    
+    top.mainloop()
+#---------------------课程学习模块----------------------------
+
+
+
+#---------------查看学生信息模块-----------------------------
+def student_info():
+    win=Tk()
+    win.geometry("1024x800")
+    win.title('学生信息查询')
+    
+    f1=Frame(win,bg='white')
+    f1.place(x=1,y=40,width=800)
+    lab1=Label(win,text='————学生信息查看————',font=20)
+    lab1.pack(anchor=N)
+    
+    #滚动条设置
+    scrollBar =Scrollbar(f1)
+    scrollBar.pack(side=RIGHT, fill=Y)
+    #学生信息列表
+    columns=("a","b","c","d","e")
+    tree=Treeview(f1,height=15,show="headings",columns=columns,yscrollcommand=scrollBar.set)
+    #表格的标题
+    tree.column("a",width=120,anchor="center")
+    tree.column("b",width=80,anchor="center")
+    tree.column("c",width=50,anchor="center")
+    tree.column("d",width=80,anchor="center")
+    tree.column("e",width=50,anchor="center")
+    tree.heading("a",text="学号")
+    tree.heading("b",text="姓名")
+    tree.heading("c",text="年龄")
+    tree.heading("d",text="任课老师")
+    tree.heading("e",text="等级")
+
+    tree.pack(fill=BOTH)
+    #Treeview组件与垂直滚动条结合
+    scrollBar.config(command=tree.yview)
+    hel= open_user_info_db()
+    cur=hel[1].cursor()
+    cur.execute("select user_num,user_name,user_id,user_password,user_rating from user_info_db")
+    res= cur.fetchall()
+    
+    for line in range(len(res)):
+        tree.insert('',line,values=(res[line]))
+    cur.close()
+    win.mainloop()
+
+
+#---------------查看学生信息模块-----------------------------
+
+
+
+#-------------------线上答疑模块-----------------------------
+def question_answer():
+    #----学生提问界面----
+    def stu_questions():
+        top=tk.Tk()
+        top.geometry("1024x800")
+        top.title('学生提问')
+        
+        lab1=Label(top,text='学生提问')
+        lab2=Label(top,text='输入标题:')
+        lab3=Label(top,text='输入问题:')
+        lab4=Label(top,text='问题解答:')
+        lab1.place(x=512,y=1)
+        #设置文本输入框输入学生提问的问题描述    
+        lab2.place(x=1,y=60)
+        ques_title=tk.StringVar()
+        e2=Entry(top,width=100)
+        e2.place(x=90,y=60)
+        
+        lab3.place(x=1,y=120)
+        question=tk.StringVar()
+        e3=Text(top,width=100,height=10)
+        e3.place(x=90,y=120)
+        
+        lab4.place(x=1,y=300)    
+        ques_answer=tk.StringVar()
+        e4=Text(top,width=100,height=10)
+        e4.place(x=90,y=300)
+        #ques_num=input("输入问题序号")
+        #ques_condition=input("输入答疑状态")
+        #ques_title=input("输入标题")
+        #question=input("输入问题")
+        #ques_answer=input("输入问题答案")
+        
+        #设置提交按钮调用添加答疑信息函数
+        #通过提交按钮将问题描述等信息添加至答疑数据库
+        b2=Button(top,text='提交',width=15,command=lambda:insert_info_qa(ques_title,question,ques_answer))
+        b2.place(x=700,y=450)
+        
+        top.mainloop()
+
+    
+    #新建一个窗口，设置其大小并设置为不可更改
+    top=tk.Tk()
+    top.geometry("1024x800")
+    top.title('在线答疑')
+    top.resizable(False, False)
+    
+    f1=Frame(top)
+    f1.place(x=40,y=40,height=350,width=800)
+    
+    #设置滚动条以便于在数据库内容超出框架范围时可以拖动滚动条来显示超出部分。
+    scrollBar =Scrollbar(f1)
+    scrollBar.pack(side=RIGHT, fill=Y)
+    
+    lab1=Label(top,text='在线答疑区',font=20)
+    lab1.place(x=400,y=1)
+    
+    
+    #创建答疑数据库陈列表格，以表格形式显示所有答疑信息
+    columns=("a","b","c","d","e")
+    tree=Treeview(f1,height=15,show="headings",columns=columns,yscrollcommand=scrollBar.set)
+    #筛选答疑数据库中需要的信息作为该表格的表头，使表格简易化
+    tree.column("a",width=30,anchor="center")
+    tree.column("b",width=250,anchor="center")
+    tree.column("c",width=40,anchor="center")
+    tree.column("d",width=80,anchor="center")
+    tree.column("e",width=40,anchor="center")
+    tree.heading("a",text="序号")
+    tree.heading("b",text="标题")
+    tree.heading("c",text="提问者")
+    tree.heading("d",text="提问时间")
+    tree.heading("e",text="答疑状态")
+    
+    tree.pack(fill=BOTH)
+    #Treeview组件与垂直滚动条结合
+    scrollBar.config(command=tree.yview)
+    
+    
+    hel= open_qa_db()
+    cur=hel[1].cursor()
+    cur.execute("select ques_id,ques_title, user_num, ques_time,ques_condition from questions_db")
+    #在表格中显示列表所需信息
+    res= cur.fetchall()
+    for line in range(len(res)):
+        tree.insert('',line,values=(res[line]))
+    #    for i in range(len(line)):
+     #       tree.insert('',i,values=(res[i]))
+    #for line in res:
+     #lab=Label(f1,text=line,bg='yellow')
+      #      lab.pack(fill=X,anchor=N)
+        
+    cur.close()
+    
+    #添加学生提问按钮，通过提问按钮调用学生提问函数stu_questions()
+    b1=Button(f1,text='提问',command=stu_questions,width=20)
+    b1.pack(fill=Y,anchor=E)
+    
+    top.mainloop()
+    
+#-------------------线上答疑模块-----------------------------
+
+
+
+#---------------------查看作业模块-----------------------------
+def schoolwork_view():
+    def schoolwork_file(event):
+        for item in tree.selection():
+            item_text=tree.item(item,"values")
+            sw_selection=item_text[0]
+            
+        for i in tree.selection():
+            if i==sw_selection[0]:
+                msgbox.showinfo("Info","this is one of  massages of students")
+            else:
+                msgbox.showinfo("Info","this is another of  massages of students")
+
+    #创建新的窗口显示作业列表区域，设置窗口大小并设置为不可更改。
+    win=Tk()
+    win.geometry("1024x800")
+    win.title('学生作业查看')
+    win.resizable(False, False)
+    
+    f1=Frame(win)
+    f1.place(x=40,y=40,height=500,width=800)
+    lab1=Label(win,text='————学生作业查看————',font=20)
+    lab1.pack(anchor=N)
+    
+    #设置滚动条以避免作业信息超出框架范围而无法显示。通过拖动滚动条查看超出部分。
+    scrollBar =Scrollbar(f1)
+    scrollBar.pack(side=RIGHT, fill=Y)
+    #建立学生作业信息列表，从作业信息数据库中读出所需数据显示在列表中，简化列表。设置show="headings"隐藏数据库首列。
+    columns=("a","b","c","d","e")
+    tree=Treeview(f1,height=15,show="headings",columns=columns,yscrollcommand=scrollBar.set)
+    #设置表格的表头，方便用户查看每一列信息。
+    tree.column("a",width=50,anchor="center")
+    tree.column("b",width=200,anchor="center")
+    tree.column("c",width=80,anchor="center")
+    tree.column("d",width=50,anchor="center")
+    tree.column("e",width=50,anchor="center")
+    tree.heading("a",text="姓名")
+    tree.heading("b",text="作业题目")
+    tree.heading("c",text="作业批次")
+    tree.heading("d",text="是否批阅")
+    tree.heading("e",text="分数")
+    #调用bind鼠标点击事件，点击条目查看对应作业详细信息。
+    tree.bind('<Double-Button-1>',schoolwork_file)
+    tree.pack(fill=BOTH)
+    
+    #设置Treeview组件与垂直滚动条结合
+    scrollBar.config(command=tree.yview)
+    hel= open_schoolwork_db()
+    cur=hel[1].cursor()
+    cur.execute("select * from schoolwork_db")
+    res= cur.fetchall()
+    #在列表区域显示用户相关的所有作业的基本信息。
+    for line in range(len(res)):
+        tree.insert('',line,values=(res[line]))
+    cur.close()
+    
+    b1=Button(win,text='上传作业',width=20)
+    b1.place(x=670,y=380)
+    win.mainloop()
+
+
+
+
+#---------------------查看作业模块-----------------------------
+
+
+
+#--------------学习系统主界面------------------------------
+def study_main():
+    def student_info_enter(event):
+        for i in listb1.curselection():
+            if listb1.get(i)=='学生信息':                               
+                #msgbox.showinfo("Info","this is one of  massages of students") 
+                student_info()
+            elif listb1.get(i)=='课程学习':
+                #msgbox.showinfo("Info","this is another  massages of students") 
+                class_learn()
+            elif listb1.get(i)=='线上答疑':
+                question_answer()
+            elif listb1.get(i)=='作业浏览':
+                schoolwork_view()
+            elif listb1.get(i)=='电影推荐':
+                movies_view()
+               
+                
+    #创建一个窗口作为主界面的窗口，并设置窗口大小并禁止修改
+    root=tk.Tk()
+    root.geometry("1024x800")
+    root.title('在线学习平台')
+    root.resizable(False, False)
+    
+    #构建左右两个框架，左边框架显示功能列表，右边框架显示教学公告
+    f_left=Frame(root,bg='red')
+    f_left.place(x=1,y=40)
+    f_right=Frame(root)
+    f_right.place(x=150,y=40)
+    
+    #左边框架显示两个区域分别为课程学习区和教师工作区，课程学习区主要供学生学习课程内容及基本功能操作使用，
+    #教师工作区只有拥有教师权限的用户可以使用,可以对学生进行管理。
+    f1=LabelFrame(f_left,text='课程学习区')
+    f1.pack(fill=Y,anchor=W)
+    f2=LabelFrame(f_left,text='教师工作区')
+    f2.pack(fill=Y,anchor=W)
+    
+    #教学公告放置在右边窗口，标题字体大小20号，正文15号，左对齐，背景颜色为白色
+    anno1='''
+      《电影赏析》是研究性以及人文素质培训课程方面的系列课程之一，是基础理论基本
+    实践课程相结合的课程。本课面对中国语言文学学科所属专业的学生，同时也并面向全
+    校各专业开设。本课程是有效提高学生的基本美学素质，也为本科学生的继续学习准备
+    了必要的条件。 
+    '''
+    annotitle=Label(root,text='教学公告',font=20)
+    annotitle.place(x=450,y=1)
+    announcement=Label(f_right,text=anno1,justify='left',font=15,anchor=N,width=90,height=25,bg='white')
+    announcement.pack(fill=Y)
+    #announcement=Text(f_right,width=120,height=40)
+    #announcement.insert(INSERT,'这里是教学公告内容')
+    #announcement.pack(fill=Y)
+    
+    #功能区可以通过直接双击字样进入相应的功能窗口界面
+    li1 = ['电影推荐','作业浏览','线上答疑','学生信息','课程学习']
+    li2 =['布置作业','上传课件','查看学生信息']
+    lab1 = Label(f1,text = '学生课程学习')
+    #lab1.grid(row=0,column=0)
+    lab2 = Label(f2,text = '教师工作区')
+    listb1=Listbox(f1,font=15,width=15)
+    listb2=Listbox(f2,font=15,width=15)
+    for item in li1:
+        listb1.insert(0,item)
+    listb1.bind('<Double-Button-1>',student_info_enter)#“<Double-Button-1>”双击li1中的字样调用函数“student_info()”
+    listb1.pack(fill=Y)
+    #lab2.grid(row=3,column=0)
+    for item in li2:
+        listb2.insert(0,item)
+    listb2.pack(fill=Y)
+    root.mainloop()
+#------------------------学习系统主界面------------------------
+
+
+
+
+#-------------------------电影推荐模块------------------------
+#导入rating.csv和movie.csv文件
+ratings_df = pd.read_csv('ratings.csv')
+ratings_df.tail()
+movies_df = pd.read_csv('movies.csv')
+#生成一列“电影行数movieRow”，取索引值index
+movies_df['movieRow'] = movies_df.index 
+movies_df.tail()
+
+#在movies_df中筛选三列
+movies_df = movies_df[['movieRow','movieId','title']]
+#生成新的文件moviesProcessed.csv
+movies_df.to_csv('moviesProcessed.csv',index = False,header = True,encoding = 'utf-8')
+movies_df.tail()
+
+#根据movieId，将ratings_df和movies_df合并为ratings_df
+ratings_df = pd.merge(ratings_df,movies_df,on = 'movieId')
+ratings_df.tail()
+
+#筛选出三列，并导出一个新的文件ratingsProcessed.csv
+ratings_df = ratings_df[['userId','movieRow','rating']]
+ratings_df.to_csv('ratingsProcessed.csv',index = False,header = True,encoding = 'utf-8')
+ratings_df.tail()
+
+#创建电影评分矩阵rating和评分记录矩阵record
+userNo = ratings_df['userId'].max()+1  #用户数量加1
+movieNo = ratings_df['movieRow'].max()+1 #电影数量加1
+rating = np.zeros((movieNo,userNo)) #创建一个都是0的数据矩阵,movieNo行，userNo列
+flag = 0 #记录处理进度
+ratings_df_length = np.shape(ratings_df)[0] #查看矩阵ratings_df的第一维度是多少
+for index,row in ratings_df.iterrows():#获取ratings_df的每一行，iterrows()对表格进行遍历
+        rating[int(row['movieRow']),int(row['userId'])] = row['rating'] #将rating_df表格里的movieRow和userId列填上row的评分
+        #疑问？？？？row的用处是什么？？？
+        flag += 1 #表示处理完一行
+        print('processed %d,%d left'%(flag,ratings_df_length-flag))
+        
+#将构建record矩阵并将矩阵中的Boolean值改成相应的数值
+record = rating>0 
+record = np.array(record,dtype = int) #0表示用户没有对电影评分，1表示用户已经对电影评分
+#疑问？？？？array是什么意思？？？有何用处？？？
+record
+
+# Summary：所有需要在TensorBoard上展示的统计结果。
+def variable_summaries(var):
+    with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        tf.summary.scalar('stddev', stddev)
+        tf.summary.scalar('max', tf.reduce_max(var))
+        tf.summary.scalar('min', tf.reduce_min(var))
+        tf.summary.histogram('histogram', var)
+
+#构建模型
+def normalizeRatings(rating,record):#缩放评分矩阵范围
+    m,n = rating.shape#m为电影数量，n为用户数量
+    rating_mean = np.zeros((m,1))#初始化电影评分平均值为0，每部电影的平均得分
+    rating_norm = np.zeros((m,n))#保存处理后的数据，处理过的评分
+    for i in range(m):
+        idx = record[i,:] != 0 #获取每部电影评分用户的下标，每部电影的评分，[i,:]表示每一行的所有列
+        #idx是如何表示评分用户的下标的？？？？
+        rating_mean[i] = np.mean(rating[i,idx])#表示第i行已经评过分的用户的平均值，np.mean()对所有元素求平均值
+        rating_norm[i,idx] -= rating_mean[i] #原始得分-平均得分
+    return rating_norm,rating_mean
+
+rating_norm,rating_mean = normalizeRatings(rating,record) #由于数据中的某些行有这里会出现警告
+#处理nan
+rating_norm = np.nan_to_num(rating_norm)
+rating_mean = np.nan_to_num(rating_mean)
+#假设一共有10类电影
+num_features = 10
+#初始化电影内容矩阵和用户喜好矩阵，产生的参数都是随机数并且是正态分布的
+X_parameters = tf.Variable(tf.random_normal([movieNo,num_features],stddev = 0.35))
+Theta_parameters = tf.Variable(tf.random_normal([userNo,num_features],stddev = 0.35))
+# 构建损失函数
+loss = 1/2 * tf.reduce_sum(((tf.matmul(X_parameters,Theta_parameters,transpose_b = True)- rating_norm)*record)**2)+ 1/2 *(tf.reduce_sum(X_parameters**2) + tf.reduce_sum(Theta_parameters**2))
+#将X_parameters，Theta_parameters矩阵相乘相乘之前将Theta_parameters转置
+#损失函数的作用？？？？
+#创建优化器和优化目标
+optimizer = tf.train.AdamOptimizer(1e-4)
+train = optimizer.minimize(loss)
+
+#训练模型
+tf.summary.scalar('loss',loss)  #用来显示标量信息
+summaryMerged = tf.summary.merge_all() #meage_all() 可以将所有summary全部保存到磁盘，以便tensorboard显示
+filename = 'movie_tensorboard'
+writer = tf.summary.FileWriter(filename)  #指定一个文件用来保存图
+sess = tf.Session()
+init = tf.global_variables_initializer()
+sess.run(init)
+for i in range(5000):
+    _,movie_summary = sess.run([train,summaryMerged]) #把训练的结果summaryMerged存放在movie里
+    writer.add_summary(movie_summary, i)  #把训练的结果保存下来
+    
+#评估模型,计算电影评分
+# Current_X_parameters为用户内容矩阵，Current_Theta_parameters用户喜好矩阵
+Current_X_parameters,Current_Theta_parameters = sess.run([X_parameters,Theta_parameters])
+
+# dot函数是np中的矩阵乘法，np.dot(x,y) 等价于 x.dot(y)
+predicts = np.dot(Current_X_parameters,Current_Theta_parameters.T)+rating_mean
+
+# sqrt(arr) ,计算各元素的平方根
+errors = np.sqrt(np.sum((predicts-rating)**2))
+errors
+
+#--------构建推荐系统----------
+def movies_view():
+    def next_view():
+        # argsort()函数返回的是数组值从小到大的索引值; argsort()[::-1] 返回的是数组值从大到小的索引值
+        sortedResult = predicts[:,int(a_user_id)].argsort()[::-1]#获取该用户的电影评分列表
+        idx =0
+        # center() 返回一个原字符串居中,并使用空格填充至长度 width 的新字符串。默认填充字符为空格。
+        lab2=Label(top,text='为该用户提供的推荐列表：')
+        lab2.pack(fill=Y)
+        #print('为该用户提供的推荐列表：'.center(80,'='))
+        for i in sortedResult:
+            #输出的评分为predicts[i,int(user_id)]
+            lab3=Label(top,text='评分：%.2f,电影名：%s'%(predicts[i,int(a_user_id)]-1,movies_df.iloc[i]['title']),justify="left")
+            #print('评分：%.2f,电影名：%s'%(predicts[i,int(user_id)]-1,movies_df.iloc[i]['title']))
+            idx +=1
+            lab3.pack(fill=Y)
+            if idx == 20:break
+    
+    
+    top=tk.Tk()
+    top.geometry("1024x800")
+    top.title('在线学习平台')
+    top.resizable(False, False)
+    
+    lab1=Label(top,text='请输入要推荐的用户编号：')
+    lab1.pack(fill=Y)
+    #
+    var_user_id=StringVar()
+    a_user_id=var_user_id.get()
+    Entry_user_id=Entry(top,textvariable=a_user_id)    
+    Entry_user_id.pack(fill=Y)
+    #user_id = input('请输入要推荐的用户编号：')
+    a_user_id=123
+    
+    b1=Button(top,text='确定',command=next_view)
+    b1.pack(fill=Y)
+    top.mainloop()
+
+
+#-------------------------电影推荐模块------------------------
+
+
+
+#-----------------------------------------------------------------登录注册界面窗口------------------------------------------------------------------
+# 第1步，实例化object，建立窗口window
+window = tk.Tk()
+ 
+# 第2步，给窗口的可视化起名字
+window.title('影视赏析在线学习系统')
+ 
+# 第3步，设定窗口的大小(长 * 宽)
+window.geometry('400x300')  # 这里的乘是小x
+ 
+# 第4步，加载 wellcome image
+canvas = tk.Canvas(window, width=400, height=135, bg='green')
+image_file = tk.PhotoImage(file='pic.png')
+image = canvas.create_image(200, 0, anchor='n', image=image_file)
+canvas.pack(side='top')
+tk.Label(window, text='Wellcome',font=('Arial', 16)).pack()
+ 
+# 第5步，用户信息
+tk.Label(window, text='User name:', font=('Arial', 14)).place(x=10, y=170)
+tk.Label(window, text='Password:', font=('Arial', 14)).place(x=10, y=210)
+ 
+# 第6步，用户登录输入框entry
+# 用户名
+var_usr_name = tk.StringVar()
+var_usr_name.set('example')
+entry_usr_name = tk.Entry(window, textvariable=var_usr_name, font=('Arial', 14))
+entry_usr_name.place(x=120,y=175)
+# 用户密码
+var_usr_pwd = tk.StringVar()
+entry_usr_pwd = tk.Entry(window, textvariable=var_usr_pwd, font=('Arial', 14), show='*')
+entry_usr_pwd.place(x=120,y=215)
+ 
+# 第8步，定义用户登录功能
+def usr_login():
+    # 这两行代码就是获取用户输入的usr_name和usr_pwd
+    usr_name = var_usr_name.get()
+    usr_pwd = var_usr_pwd.get()
+ 
+    # 这里设置异常捕获，当我们第一次访问用户信息文件时是不存在的，所以这里设置异常捕获。
+    # 中间的两行就是我们的匹配，即程序将输入的信息和文件中的信息匹配。
+    try:
+        with open('usrs_info.pickle', 'rb') as usr_file:
+            usrs_info = pickle.load(usr_file)
+    except FileNotFoundError:
+        # 这里就是我们在没有读取到`usr_file`的时候，程序会创建一个`usr_file`这个文件，并将管理员
+        # 的用户和密码写入，即用户名为`admin`密码为`admin`。
+        with open('usrs_info.pickle', 'wb') as usr_file:
+            usrs_info = {'admin': 'admin'}
+            pickle.dump(usrs_info, usr_file)
+            usr_file.close()    # 必须先关闭，否则pickle.load()会出现EOFError: Ran out of input
+ 
+    # 如果用户名和密码与文件中的匹配成功，则会登录成功，并跳出弹窗how are you? 加上你的用户名。
+    if usr_name in usrs_info:
+        if usr_pwd == usrs_info[usr_name]:
+            window.destroy()
+            study_main()
+        # 如果用户名匹配成功，而密码输入错误，则会弹出'Error, your password is wrong, try again.'
+        else:
+            tkinter.messagebox.showerror(message='Error, your password is wrong, try again.')
+    else:  # 如果发现用户名不存在
+        is_sign_up = tkinter.messagebox.askyesno('Welcome！ ', 'You have not sign up yet. Sign up now?')
+        # 提示需不需要注册新用户
+        if is_sign_up:
+            usr_sign_up()
+
+#第9步，定义用户注册功能
+def usr_sign_up():
+    def sign_to_Hongwei_Website():
+        # 以下三行就是获取我们注册时所输入的信息
+        np = new_pwd.get()
+        npf = new_pwd_confirm.get()
+        nn = new_name.get()
+ 
+        # 这里是打开我们记录数据的文件，将注册信息读出
+        with open('usrs_info.pickle', 'rb') as usr_file:
+            exist_usr_info = pickle.load(usr_file)
+        # 这里就是判断，如果两次密码输入不一致，则提示Error, Password and confirm password must be the same!
+        if np != npf:
+            tkinter.messagebox.showerror('Error', 'Password and confirm password must be the same!')
+ 
+        # 如果用户名已经在我们的数据文件中，则提示Error, The user has already signed up!
+        elif nn in exist_usr_info:
+            tkinter.messagebox.showerror('Error', 'The user has already signed up!')
+ 
+        # 最后如果输入无以上错误，则将注册输入的信息记录到文件当中，并提示注册成功Welcome！,You have successfully signed up!，然后销毁窗口。
+        else:
+            exist_usr_info[nn] = np
+            with open('usrs_info.pickle', 'wb') as usr_file:
+                pickle.dump(exist_usr_info, usr_file)
+            #待添加……此处添加用户注册信息录入数据库操作
+            tkinter.messagebox.showinfo('Welcome', 'You have successfully signed up!')
+            # 然后销毁窗口。
+            window_sign_up.destroy()
+ 
+    # 定义长在窗口上的窗口
+    window_sign_up = tk.Toplevel(window)
+    window_sign_up.geometry('300x200')
+    window_sign_up.title('用户注册')
+ 
+    new_name = tk.StringVar()  # 将输入的注册名赋值给变量
+    new_name.set('example')  # 将最初显示定为'example@python.com'
+    tk.Label(window_sign_up, text='User name: ').place(x=10, y=10)  # 将`User name:`放置在坐标（10,10）。
+    entry_new_name = tk.Entry(window_sign_up, textvariable=new_name)  # 创建一个注册名的`entry`，变量为`new_name`
+    entry_new_name.place(x=130, y=10)  # `entry`放置在坐标（150,10）.
+ 
+    new_pwd = tk.StringVar()
+    tk.Label(window_sign_up, text='Password: ').place(x=10, y=50)
+    entry_usr_pwd = tk.Entry(window_sign_up, textvariable=new_pwd, show='*')
+    entry_usr_pwd.place(x=130, y=50)
+ 
+    new_pwd_confirm = tk.StringVar()
+    tk.Label(window_sign_up, text='Confirm password: ').place(x=10, y=90)
+    entry_usr_pwd_confirm = tk.Entry(window_sign_up, textvariable=new_pwd_confirm, show='*')
+    entry_usr_pwd_confirm.place(x=130, y=90)
+ 
+    # 下面的 sign_to_Hongwei_Website
+    btn_comfirm_sign_up = tk.Button(window_sign_up, text='Sign up', command=sign_to_Hongwei_Website)
+    btn_comfirm_sign_up.place(x=180, y=120)
+
+#  第7步，login and sign up 按钮
+btn_login = tk.Button(window, text='Login', command=usr_login)
+btn_login.place(x=120, y=240)
+btn_sign_up = tk.Button(window, text='Sign up', command=usr_sign_up)
+btn_sign_up.place(x=200, y=240)
+ 
+# 第10步，主窗口循环显示
+
+window.mainloop()
